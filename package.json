@@ -44,7 +44,7 @@
         "@tsparticles/slim": "^3.9.1",
         "@unocss/vite": "^0.63.6",
         "@vitejs/plugin-react": "^4.3.4",
-        "chrome-extension-toolkit": "^0.0.54",
+"chrome-extension-toolkit": "^0.0.54",
         "clsx": "^2.1.1",
         "conventional-changelog": "^6.0.0",
         "date-fns": "^4.1.0",
