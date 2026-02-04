@@ -15,6 +15,9 @@ const dayToNumber = {
     Sunday: 6,
 } as const satisfies Record<string, number>;
 
+const DEFAULT_GRID_START_MINUTES = 8 * 60; // 8:00 AM
+const EARLIEST_ALLOWED_START_MINUTES = 7 * 60; // 7:00 AM
+
 interface CalendarGridPoint {
     dayIndex: number;
     startIndex: number;
@@ -45,6 +48,7 @@ export interface CalendarGridCourse {
 export interface FlattenedCourseSchedule {
     courseCells: CalendarGridCourse[];
     activeSchedule: UserSchedule;
+    gridStartMinutes: number;
 }
 
 /**
@@ -53,9 +57,8 @@ export interface FlattenedCourseSchedule {
  * @param minutes - The number of minutes.
  * @returns The index value.
  */
-export const convertMinutesToIndex = (minutes: number): number =>
-    // 480 = 8 a.m., 30 = 30 minute slots, 2 header rows, and grid rows start at 1
-    Math.floor((minutes - 480) / 30) + 2 + 1;
+export const convertMinutesToIndex = (minutes: number, gridStartMinutes: number): number =>
+    Math.floor((minutes - gridStartMinutes) / 30) + 3;
 
 /**
  * Get the active schedule, and convert it to be render-able into a calendar.
@@ -63,6 +66,14 @@ export const convertMinutesToIndex = (minutes: number): number =>
  */
 export function useFlattenedCourseSchedule(): FlattenedCourseSchedule {
     const [activeSchedule] = useSchedules();
+
+    const earliestMeetingStart = Math.min(
+        DEFAULT_GRID_START_MINUTES,
+        ...activeSchedule.courses.flatMap(course => course.schedule.meetings.map(m => m.startTime))
+    );
+
+    const gridStartMinutes =
+        earliestMeetingStart < DEFAULT_GRID_START_MINUTES ? EARLIEST_ALLOWED_START_MINUTES : DEFAULT_GRID_START_MINUTES;
 
     const processedCourses = activeSchedule.courses
         .flatMap(course => {
@@ -73,11 +84,11 @@ export function useFlattenedCourseSchedule(): FlattenedCourseSchedule {
             }
 
             return meetings.flatMap(meeting => {
-                if (meeting.days.includes(DAY_MAP.S) || meeting.startTime < 480) {
+                if (meeting.days.includes(DAY_MAP.S)) {
                     return processAsyncCourses({ courseDeptAndInstr, status, course });
                 }
 
-                return processInPersonMeetings(meeting, courseDeptAndInstr, status, course);
+                return processInPersonMeetings(meeting, courseDeptAndInstr, status, course, gridStartMinutes);
             });
         })
         .sort(sortCourses);
@@ -85,6 +96,7 @@ export function useFlattenedCourseSchedule(): FlattenedCourseSchedule {
     return {
         courseCells: processedCourses,
         activeSchedule,
+        gridStartMinutes,
     };
 }
 
@@ -149,7 +161,8 @@ function processInPersonMeetings(
     meeting: CourseMeeting,
     courseDeptAndInstr: string,
     status: StatusType,
-    course: Course
+    course: Course,
+    gridStartMinutes: number
 ): CalendarGridCourse[] {
     const { days, startTime, endTime, location } = meeting;
     const midnightIndex = 1440;
@@ -171,8 +184,8 @@ function processInPersonMeetings(
     return days.map(day => ({
         calendarGridPoint: {
             dayIndex: dayToNumber[day],
-            startIndex: convertMinutesToIndex(normalizedStartTime),
-            endIndex: convertMinutesToIndex(normalizedEndTime),
+            startIndex: convertMinutesToIndex(normalizedStartTime, gridStartMinutes),
+            endIndex: convertMinutesToIndex(normalizedEndTime, gridStartMinutes),
         },
         componentProps: {
             courseDeptAndInstr,

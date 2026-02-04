@@ -10,10 +10,7 @@ import CalendarCell from './CalendarGridCell';
 import { calculateCourseCellColumns } from './utils';
 
 const daysOfWeek = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
-const GRID_START_HOUR = 7;
 const GRID_END_HOUR = 21;
-
-const hoursOfDay = Array.from({ length: GRID_END_HOUR - GRID_START_HOUR + 1 }, (_, index) => index + GRID_START_HOUR);
 
 const IS_STORYBOOK = import.meta.env.STORYBOOK;
 
@@ -21,6 +18,7 @@ interface Props {
     courseCells?: CalendarGridCourse[];
     saturdayClass?: boolean;
     setCourse: React.Dispatch<React.SetStateAction<Course | null>>;
+    gridStartMinutes: number;
 }
 
 function CalendarHour({ hour }: { hour: number }) {
@@ -33,7 +31,7 @@ function CalendarHour({ hour }: { hour: number }) {
     );
 }
 
-function makeGridRow(row: number, cols: number): JSX.Element {
+function makeGridRow(row: number, cols: number, hoursOfDay: number[]): JSX.Element {
     const hour = hoursOfDay[row]!;
 
     return (
@@ -59,9 +57,14 @@ function makeGridRow(row: number, cols: number): JSX.Element {
  */
 export default function CalendarGrid({
     courseCells,
-    saturdayClass: _saturdayClass, // TODO: implement/move away from props
+    saturdayClass: _saturdayClass,
     setCourse,
+    gridStartMinutes,
 }: React.PropsWithChildren<Props>): JSX.Element {
+    const gridStartHour = gridStartMinutes / 60;
+
+    const hoursOfDay = Array.from({ length: GRID_END_HOUR - gridStartHour + 1 }, (_, index) => index + gridStartHour);
+
     const gridTemplateRows = `auto auto repeat(${hoursOfDay.length * 2 - 1}, 1fr)`;
 
     return (
@@ -90,7 +93,8 @@ export default function CalendarGrid({
             <div />
             {/* time tick for the first hour */}
             <div className='h-4 w-4 self-end border-b border-r border-gray-300' />
-            {hoursOfDay.map((_, i) => makeGridRow(i, 5))}
+            {hoursOfDay.map((_, i) => makeGridRow(i, 5, hoursOfDay))}
+
             {Array(6)
                 .fill(1)
                 .map((_, i) => (
